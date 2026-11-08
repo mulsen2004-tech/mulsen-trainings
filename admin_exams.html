@@ -1,0 +1,217 @@
+{% extends "admin_base.html" %}
+{% block title %}Exams — Admin{% endblock %}
+{% block admin_content %}
+<h1>Exams</h1>
+
+{% if not courses %}
+  <div class="card">
+    <p class="muted">No courses yet — create one first.</p>
+    <a href="{{ url_for('admin_courses') }}" class="btn btn-primary btn-sm">Go to Courses</a>
+  </div>
+{% else %}
+  <div class="course-picker">
+    <label for="courseSelect">Choose course:</label>
+    <select id="courseSelect"
+            data-base="{{ url_for('admin_exams') }}"
+            onchange="onCourseChange(this)">
+      {% for c in courses %}
+        <option value="{{ c.id }}"
+                {{ 'selected' if selected and selected.id == c.id else '' }}>
+          {{ c.name }}
+        </option>
+      {% endfor %}
+    </select>
+    <a href="{{ url_for('admin_courses') }}" class="btn btn-secondary btn-sm"
+       style="margin-left:auto;">+ New course</a>
+  </div>
+{% endif %}
+
+{% if selected %}
+  <section class="card">
+    <h2>Add question to "{{ selected.name }}"</h2>
+    <form method="POST"
+          action="{{ url_for('add_question', course_id=selected.id) }}"
+          class="stack">
+      <div class="grid-2">
+        <label for="qt">Question type</label>
+        <select name="question_type" id="qt" onchange="toggleQType()">
+          <option value="mc">Multiple choice</option>
+          <option value="tf">True / False</option>
+        </select>
+      </div>
+
+      <input type="text" name="question_text" placeholder="Question text" required>
+
+      <div id="mc_block" class="stack">
+        <input type="text" name="option_a" placeholder="Option A" required>
+        <input type="text" name="option_b" placeholder="Option B" required>
+        <input type="text" name="option_c" placeholder="Option C">
+        <input type="text" name="option_d" placeholder="Option D">
+        <select name="correct_answer">
+          <option value="A">Correct: A</option>
+          <option value="B">Correct: B</option>
+          <option value="C">Correct: C</option>
+          <option value="D">Correct: D</option>
+        </select>
+      </div>
+
+      <div id="tf_block" class="stack hidden">
+        <select name="correct_answer_tf">
+          <option value="T">Correct: True</option>
+          <option value="F">Correct: False</option>
+        </select>
+      </div>
+
+      <div>
+        <button class="btn btn-primary btn-sm" type="submit">💾 Save — Add question</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Questions ({{ selected.questions|length }})</h2>
+    {% if not selected.questions %}
+      <p class="muted">No questions yet.</p>
+    {% endif %}
+
+    {% for q in selected.questions %}
+      <div class="q-block">
+        <div class="q-head">
+          <div>
+            <strong>{{ loop.index }}. {{ q.question_text }}</strong>
+            <div class="muted" style="font-size:.85rem;margin-top:.25rem;">
+              {% if q.question_type == 'tf' %}
+                Type: True/False — Correct: {{ 'True' if q.correct_answer == 'T' else 'False' }}
+              {% else %}
+                Correct: {{ q.correct_answer }} &middot;
+                A: {{ q.option_a or '—' }} &middot;
+                B: {{ q.option_b or '—' }} &middot;
+                C: {{ q.option_c or '—' }} &middot;
+                D: {{ q.option_d or '—' }}
+              {% endif %}
+            </div>
+          </div>
+          <div class="head-actions">
+                <button type="button" class="btn btn-secondary btn-sm"
+                  data-q-edit="{{ q.id }}">✏ Edit</button>
+            <form method="POST" style="display:inline"
+                  action="{{ url_for('delete_question', q_id=q.id) }}"
+                  onsubmit="return confirm('Delete this question?');">
+              <button class="btn btn-danger btn-sm" type="submit">🗑 Delete</button>
+            </form>
+          </div>
+        </div>
+
+        <div id="qEdit_{{ q.id }}" class="hidden" style="margin-top:.75rem;">
+          <form method="POST"
+                action="{{ url_for('edit_question', q_id=q.id) }}"
+                class="stack">
+            <div class="grid-2">
+              <select name="question_type" id="eqt_{{ q.id }}"
+                      data-q-id="{{ q.id }}"
+                      onchange="toggleEQType(this.dataset.qId)">
+                <option value="mc" {{ 'selected' if q.question_type == 'mc' }}>Multiple choice</option>
+                <option value="tf" {{ 'selected' if q.question_type == 'tf' }}>True / False</option>
+              </select>
+              <span></span>
+            </div>
+            <input type="text" name="question_text" value="{{ q.question_text }}" required>
+
+            <div id="emc_{{ q.id }}" class="stack {{ 'hidden' if q.question_type == 'tf' else '' }}">
+              <input type="text" name="option_a" value="{{ q.option_a or '' }}" placeholder="Option A">
+              <input type="text" name="option_b" value="{{ q.option_b or '' }}" placeholder="Option B">
+              <input type="text" name="option_c" value="{{ q.option_c or '' }}" placeholder="Option C">
+              <input type="text" name="option_d" value="{{ q.option_d or '' }}" placeholder="Option D">
+              <select name="correct_answer">
+                {% for letter in ['A','B','C','D'] %}
+                  <option value="{{ letter }}" {{ 'selected' if q.correct_answer == letter }}>Correct: {{ letter }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div id="etf_{{ q.id }}" class="stack {{ 'hidden' if q.question_type != 'tf' else '' }}">
+              <select name="correct_answer_tf">
+                <option value="T" {{ 'selected' if q.correct_answer == 'T' }}>Correct: True</option>
+                <option value="F" {{ 'selected' if q.correct_answer == 'F' }}>Correct: False</option>
+              </select>
+            </div>
+
+            <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+              <button class="btn btn-primary btn-sm" type="submit">💾 Save changes</button>
+              <button class="btn btn-secondary btn-sm cancel-edit-btn" type="button"
+                      data-q-cancel="{{ q.id }}">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    {% endfor %}
+  </section>
+{% endif %}
+
+<style>
+  .course-picker { display:flex; align-items:center; gap:.6rem; margin-bottom:1rem; }
+  .course-picker label { font-weight:600; margin:0; }
+  .q-block { border:1px solid #e5e7eb; border-radius:.5rem; padding:.85rem 1rem;
+             margin-bottom:.75rem; background:#fafafa; }
+  .q-head { display:flex; justify-content:space-between; gap:1rem;
+            align-items:flex-start; }
+  .head-actions { display:flex; gap:.4rem; flex-shrink:0; }
+
+  @media (max-width:768px){
+    .course-picker{ flex-direction:column; align-items:stretch; }
+    .course-picker > *{ width:100%; }
+    .q-head{ flex-direction:column; align-items:stretch; gap:.5rem; }
+    .head-actions{ flex-direction:row; }
+    .head-actions > *{ flex:1; }
+    .head-actions button{ width:100%; }
+    .grid-2{ grid-template-columns:1fr; }
+  }
+  @media (max-width:640px){
+    .q-block{ padding:.65rem .75rem; }
+    .course-picker label{ font-size:.85rem; }
+  }
+</style>
+
+<script>
+function onCourseChange(sel){
+  if (!sel.value) return;
+  const base = sel.dataset.base.replace(/\/$/, '');
+  window.location = base + '/' + sel.value;
+}
+
+function setBlockVisible(block, visible){
+  if (!block) return;
+  block.classList.toggle('hidden', !visible);
+  block.querySelectorAll('input, select').forEach(el => {
+    el.disabled = !visible;
+  });
+}
+
+function toggleQType(){
+  const sel = document.getElementById('qt');
+  if (!sel) return;
+  const isTF = sel.value === 'tf';
+  setBlockVisible(document.getElementById('mc_block'), !isTF);
+  setBlockVisible(document.getElementById('tf_block'),  isTF);
+}
+
+function toggleQEdit(id){
+  const el = document.getElementById('qEdit_' + id);
+  if (el) el.classList.toggle('hidden');
+}
+
+document.querySelectorAll('[data-q-edit]').forEach(button => {
+  button.addEventListener('click', () => toggleQEdit(button.dataset.qEdit));
+});
+
+function toggleEQType(id){
+  const sel = document.getElementById('eqt_' + id);
+  if (!sel) return;
+  const isTF = sel.value === 'tf';
+  setBlockVisible(document.getElementById('emc_' + id), !isTF);
+  setBlockVisible(document.getElementById('etf_' + id),  isTF);
+}
+
+document.addEventListener('DOMContentLoaded', toggleQType);
+</script>
+{% endblock %}

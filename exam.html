@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% block title %}Exam - {{ course.name }}{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Exam: {{ course.name }}</h2>
+  <p class="muted">Attempt {{ attempt_number }} of 2 · Each question allows <strong>1 minute</strong>. Unanswered questions auto-submit when time is up.</p>
+  <p id="timer" style="font-size:1.4rem;font-weight:700;">Question 1 / {{ questions|length }} — 60s</p>
+
+  <form method="post" id="exam-form">
+    {% for q in questions %}
+    <div class="card question" data-index="{{ loop.index0 }}"{% if not loop.first %} hidden{% endif %}>
+      <h3>Q{{ loop.index }}. {{ q.question_text }}</h3>
+      {% if q.question_type == 'tf' %}
+        <label class="radio-row"><input type="radio" name="q_{{ q.id }}" value="T"> True</label>
+        <label class="radio-row"><input type="radio" name="q_{{ q.id }}" value="F"> False</label>
+      {% else %}
+        {% for letter, text in [('A', q.option_a), ('B', q.option_b), ('C', q.option_c), ('D', q.option_d)] %}
+          {% if text %}
+          <label class="radio-row"><input type="radio" name="q_{{ q.id }}" value="{{ letter }}"> {{ letter }}. {{ text }}</label>
+          {% endif %}
+        {% endfor %}
+      {% endif %}
+      <div class="q-nav">
+        {% if not loop.first %}<button type="button" class="prev-q">◀ Previous</button>{% endif %}
+        {% if not loop.last %}
+          <button type="button" class="next-q">Next ▶</button>
+        {% else %}
+          <button type="submit">Submit Exam</button>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </form>
+</div>
+
+<style>
+  .radio-row{ display:flex; align-items:flex-start; gap:.5rem;
+              padding:.35rem 0; font-weight:400; cursor:pointer; }
+  .radio-row input[type=radio]{ margin-top:.3rem; flex-shrink:0; }
+  .q-nav{ margin-top:.8rem; display:flex; gap:.5rem; flex-wrap:wrap; }
+
+  @media (max-width:640px){
+    .card{ padding:.85rem; }
+    .card h2{ font-size:1.15rem; }
+    .question h3{ font-size:1rem; line-height:1.4; }
+    #timer{ font-size:1.1rem !important; }
+    .radio-row{ font-size:.95rem; padding:.55rem 0; }
+    .radio-row input[type=radio]{ transform:scale(1.25);
+                                   margin-top:.2rem; }
+    .q-nav{ flex-direction:column; }
+    .q-nav button{ width:100%; }
+  }
+</style>
+
+<script>
+const qs = document.querySelectorAll('.question');
+let cur = 0;
+const perQ = 60;
+let remain = perQ;
+const timerEl = document.getElementById('timer');
+let timerId;
+
+function show(i){
+  qs.forEach((el, k)=> el.hidden = (k !== i));
+  cur = i; remain = perQ; tick();
+  timerEl.textContent = `Question ${i+1} / ${qs.length} — ${remain}s`;
+}
+
+function tick(){
+  clearInterval(timerId);
+  timerEl.textContent = `Question ${cur+1} / ${qs.length} — ${remain}s`;
+  timerId = setInterval(()=>{
+    remain--;
+    timerEl.textContent = `Question ${cur+1} / ${qs.length} — ${remain}s`;
+    if (remain <= 0){
+      clearInterval(timerId);
+      if (cur < qs.length-1){ show(cur+1); }
+      else { document.getElementById('exam-form').submit(); }
+    }
+  }, 1000);
+}
+
+document.querySelectorAll('.next-q').forEach(b=>b.addEventListener('click',
+  ()=> show(Math.min(cur+1, qs.length-1))));
+document.querySelectorAll('.prev-q').forEach(b=>b.addEventListener('click',
+  ()=> show(Math.max(cur-1, 0))));
+
+show(0);
+</script>
+{% endblock %}

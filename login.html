@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title %}Trainee Login{% endblock %}
+{% block content %}
+<div class="auth-card">
+  <h1>👋 Trainee Login</h1>
+  <form method="post">
+    <label for="identifier">Email (or 5-digit ID)</label>
+    <input id="identifier" type="text" name="identifier"
+           autocomplete="username" required autofocus
+           placeholder="you@company.com">
+
+    <label for="password">Password</label>
+    <input id="password" type="password" name="password"
+           autocomplete="current-password" required>
+
+    <button type="submit">Sign in</button>
+  </form>
+
+  <p class="auth-footer">
+    New here? <a href="/signup">Create an account →</a>
+  </p>
+  <p class="auth-footer" style="margin-top:.25rem;">
+    <a href="{{ url_for('admin_login') }}">Admin login →</a>
+  </p>
+</div>
+{% endblock %}

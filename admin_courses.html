@@ -1,0 +1,146 @@
+{% extends "admin_base.html" %}
+{% block title %}Courses — Admin{% endblock %}
+{% block admin_content %}
+<h1>Courses</h1>
+
+<section class="card">
+  <h2>Create course</h2>
+  <form method="POST" action="{{ url_for('create_course') }}"
+        enctype="multipart/form-data" class="stack">
+    <div class="grid-2">
+      <input type="text" name="name" placeholder="Course name" required>
+      <input type="text" name="description" placeholder="Short description">
+    </div>
+    <input type="file" name="ppt_file" accept=".pptx,.pdf">
+    <small class="muted">Upload a .pptx or .pdf. Slides are extracted automatically.</small>
+    <div>
+      <button class="btn btn-primary" type="submit">💾 Save — Create course</button>
+    </div>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Existing courses</h2>
+  {% if not courses %}
+    <p class="muted">No courses yet.</p>
+  {% endif %}
+
+  {% for course in courses %}
+    {% set audio = course_audio[course.id] %}
+    <div class="course-block">
+      <div class="course-head">
+        <div>
+          <h3>{{ course.name }}</h3>
+          <p class="muted">{{ course.description or '(no description)' }}</p>
+          <p class="badges">
+            <span class="badge">Slides: {{ audio.slide_count if audio.slide_count is not none else '?' }}</span>
+            <span class="badge">Script pages: {{ audio.script_pages }}</span>
+            {% if audio.am_pages %}
+              <span class="badge badge-am"
+                    title="{{ audio.am_pages }} Amharic page(s)">
+                አማርኛ {{ audio.am_pages }}
+              </span>
+            {% endif %}
+            {% if audio.en_pages %}
+              <span class="badge badge-en"
+                    title="{{ audio.en_pages }} English page(s)">
+                EN {{ audio.en_pages }}
+              </span>
+            {% endif %}
+            <span class="badge badge-green">Recorded: {{ audio.recorded_pages }}</span>
+          </p>
+        </div>
+        <div class="head-actions">
+          <button type="button" class="btn btn-secondary btn-sm toggle-edit-btn"
+                  data-course-id="{{ course.id }}">✏ Edit</button>
+          <form method="POST" style="display:inline"
+                action="{{ url_for('delete_course', course_id=course.id) }}"
+                onsubmit="return confirm('Delete this course and all its data?');">
+            <button class="btn btn-danger btn-sm" type="submit">🗑 Delete</button>
+          </form>
+        </div>
+      </div>
+
+      <div id="editBlock_{{ course.id }}" style="display:none;margin-top:.75rem;">
+        <form method="POST"
+              action="{{ url_for('edit_course', course_id=course.id) }}"
+              enctype="multipart/form-data" class="stack">
+          <div class="grid-2">
+            <input type="text" name="name" value="{{ course.name }}" required>
+            <input type="text" name="description" value="{{ course.description or '' }}">
+          </div>
+          <small class="muted">Upload a new .pptx/.pdf to replace the slideshow
+            (optional — leave empty to keep current).</small>
+          <input type="file" name="ppt_file" accept=".pptx,.pdf">
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+            <button class="btn btn-primary btn-sm" type="submit">💾 Save changes</button>
+            <button class="btn btn-secondary btn-sm" type="button"
+                    data-close-edit>Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  {% endfor %}
+</section>
+
+<style>
+  .course-block { border:1px solid #e5e7eb; border-radius:.6rem;
+                  padding:1rem; margin-bottom:1rem; background:#fafafa; }
+  .course-head { display:flex; justify-content:space-between;
+                 gap:1rem; align-items:flex-start; }
+  .course-head h3 { margin:0 0 .25rem 0; word-break:break-word; }
+  .head-actions { display:flex; gap:.5rem; flex-shrink:0; }
+  .badges { display:flex; gap:.4rem; flex-wrap:wrap; margin:.4rem 0 0; }
+
+  /* Language badges */
+  .badge-am {
+    background:#fef3c7;
+    color:#92400e;
+    font-family: "Noto Sans Ethiopic", "Nyala", "Abyssinica SIL", sans-serif;
+    font-weight:700;
+  }
+  .badge-en {
+    background:#dbeafe;
+    color:#1e40af;
+    font-weight:700;
+  }
+
+  @media (max-width:768px){
+    .course-head{ flex-direction:column; align-items:stretch; }
+    .head-actions{ flex-direction:row; width:100%; margin-top:.5rem; }
+    .head-actions > *{ flex:1; }
+    .head-actions button, .head-actions form,
+    .head-actions form > button{ width:100%; }
+    .badges{ margin-top:.5rem; }
+    .grid-2{ grid-template-columns:1fr; }
+  }
+  @media (max-width:640px){
+    .course-block{ padding:.75rem; }
+    .course-head h3{ font-size:1rem; }
+  }
+</style>
+
+<script>
+document.addEventListener("click", (event) => {
+  const toggleButton = event.target.closest('.toggle-edit-btn');
+  if (toggleButton) {
+    const courseId = toggleButton.dataset.courseId;
+    const editBlock = document.getElementById('editBlock_' + courseId);
+    if (editBlock) {
+      editBlock.style.display =
+        (editBlock.style.display === 'none' || !editBlock.style.display)
+          ? 'block' : 'none';
+    }
+    return;
+  }
+  const closeButton = event.target.closest('[data-close-edit]');
+  if (closeButton) {
+    const courseBlock = closeButton.closest('.course-block');
+    if (courseBlock) {
+      const editBlock = courseBlock.querySelector('[id^="editBlock_"]');
+      if (editBlock) editBlock.style.display = 'none';
+    }
+  }
+});
+</script>
+{% endblock %}

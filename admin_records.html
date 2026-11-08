@@ -1,0 +1,143 @@
+{% extends "admin_base.html" %}
+{% block title %}Training Records — Admin{% endblock %}
+{% block admin_content %}
+<div class="records-head">
+  <h1>Training Records</h1>
+  <div class="records-actions">
+    <button type="button" class="btn btn-secondary btn-sm"
+            onclick="window.print()">🖨 Print</button>
+    <a href="{{ url_for('export_records_csv') }}" class="btn btn-primary btn-sm">
+      ⬇ Download report (CSV)
+    </a>
+  </div>
+</div>
+
+<div class="kpi-strip">
+  <div class="kpi"><div class="kpi-num">{{ trainers|length }}</div><div class="kpi-lbl">Trainees</div></div>
+  <div class="kpi"><div class="kpi-num">{{ courses|length }}</div><div class="kpi-lbl">Courses</div></div>
+  <div class="kpi"><div class="kpi-num">{{ recent|length }}</div><div class="kpi-lbl">Attempts (recent)</div></div>
+  <div class="kpi"><div class="kpi-num">{{ summary|selectattr('distinctions','gt',0)|list|length }}</div><div class="kpi-lbl">Trainees w/ distinction</div></div>
+</div>
+
+<section class="card">
+  <h2>Per-trainee summary</h2>
+  {% if not summary %}<p class="muted">No trainees yet.</p>{% endif %}
+  {% for s in summary %}
+    <details class="trainer-block">
+      <summary>
+        <span class="tname">{{ s.trainer.name }}</span>
+        <span class="tid">ID {{ s.trainer.trainer_id }}</span>
+        <span class="badges">
+          <span class="badge">{{ s.total_courses }} course(s)</span>
+          <span class="badge badge-green">{{ s.passed_courses }} passed</span>
+          {% if s.distinctions %}
+            <span class="badge badge-gold">{{ s.distinctions }} distinction(s)</span>
+          {% endif %}
+          <span class="badge">Avg best: {{ "%.1f"|format(s.avg_best) }}%</span>
+        </span>
+      </summary>
+
+      {% if s.rows %}
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Course</th><th>Attempts</th><th>Best</th>
+                <th>Result</th><th>Last attempt</th><th>Certificate</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in s.rows %}
+                <tr>
+                  <td>{{ r.course.name }}</td>
+                  <td>{{ r.attempts }}</td>
+                  <td>{{ "%.1f"|format(r.best) }}%</td>
+                  <td>
+                    {% if r.distinction %}<span class="tag-gold">Distinction</span>
+                    {% elif r.passed %}<span class="tag-green">Passed</span>
+                    {% else %}<span class="tag-red">Not passed</span>{% endif %}
+                  </td>
+                  <td>{{ r.last.strftime('%b %d, %Y %H:%M') }}</td>
+                  <td>
+                    {% if r.passed and r.best_attempt_id %}
+                      <a class="btn btn-sm btn-secondary"
+                         href="{{ url_for('admin_download_certificate', attempt_id=r.best_attempt_id, inline=1) }}"
+                         target="_blank" rel="noopener">👁 View</a>
+                      <a class="btn btn-sm btn-secondary"
+                         href="{{ url_for('admin_download_certificate', attempt_id=r.best_attempt_id) }}">⬇ PDF</a>
+                    {% else %}<span class="muted">—</span>{% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <p class="muted">No attempts yet.</p>
+      {% endif %}
+    </details>
+  {% endfor %}
+</section>
+
+<section class="card">
+  <h2>Recent attempts</h2>
+  {% if not recent %}<p class="muted">No attempts yet.</p>{% else %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>When</th><th>Trainee</th><th>Course</th>
+            <th>Score</th><th>Result</th><th>Certificate</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in recent %}
+            <tr>
+              <td>{{ a.completed_at.strftime('%b %d, %Y %H:%M') }}</td>
+              <td>{{ a.trainer.name }} <span class="muted">({{ a.trainer.trainer_id }})</span></td>
+              <td>{{ a.course.name }}</td>
+              <td>{{ "%.1f"|format(a.percentage) }}%</td>
+              <td>
+                {% if a.distinction %}<span class="tag-gold">Distinction</span>
+                {% elif a.passed %}<span class="tag-green">Passed</span>
+                {% else %}<span class="tag-red">Not passed</span>{% endif %}
+              </td>
+              <td>
+                {% if a.passed %}
+                  <a class="btn btn-sm btn-secondary"
+                     href="{{ url_for('admin_download_certificate', attempt_id=a.id, inline=1) }}"
+                     target="_blank" rel="noopener">👁 View</a>
+                  <a class="btn btn-sm btn-secondary"
+                     href="{{ url_for('admin_download_certificate', attempt_id=a.id) }}">⬇ PDF</a>
+                {% else %}<span class="muted">—</span>{% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</section>
+
+<style>
+  .records-head{ display:flex; justify-content:space-between;
+                 align-items:center; margin-bottom:1rem;
+                 flex-wrap:wrap; gap:.5rem; }
+  .records-head h1{ margin:0; }
+  .records-actions{ display:flex; gap:.5rem; flex-wrap:wrap; }
+  .table-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+
+  @media (max-width:768px){
+    .records-head{ flex-direction:column; align-items:stretch; }
+    .records-head .records-actions{ flex-direction:column; }
+    .records-head .records-actions > *{ width:100%; }
+    .trainer-block summary{ flex-direction:column;
+                            align-items:flex-start; }
+    .badges{ width:100%; margin-left:0; margin-top:.35rem; }
+    .table th, .table td{ white-space:nowrap; }
+  }
+  @media (max-width:640px){
+    .card{ padding:.85rem; }
+  }
+</style>
+{% endblock %}

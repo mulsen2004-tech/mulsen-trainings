@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% block title %}My Dashboard{% endblock %}
+{% block content %}
+<div class="card">
+  <h2 style="margin-bottom:.25rem;">Welcome, {{ trainer.display_name }}</h2>
+  <p class="muted" style="margin:0;">Trainee ID: {{ trainer.trainer_id }}
+    {% if trainer.email %} &middot; {{ trainer.email }}{% endif %}
+    {% if trainer.department %} &middot; {{ trainer.department }}{% endif %}
+    {% if trainer.position %} &middot; {{ trainer.position }}{% endif %}
+  </p>
+</div>
+
+<div class="card">
+  <h3>📚 Available Trainings</h3>
+  {% if courses %}
+  <div class="table-wrap">
+    <table>
+      <tr>
+        <th>Course</th><th>Pages Done</th><th>Attempts</th>
+        <th>Best</th><th>Status</th><th></th>
+      </tr>
+      {% for c in courses %}
+      {% set st = status[c.id] %}
+      <tr>
+        <td>{{ c.name }}</td>
+        <td>{{ st.completed_slides }}</td>
+        <td>{{ st.attempts_used }} / 2</td>
+        <td>{{ '%.1f'|format(st.best) }}%</td>
+        <td>
+          {% if st.passed %}<span class="badge green">✅ Passed</span>
+          {% elif st.attempts_used >= 2 %}<span class="badge red">❌ Not passed</span>
+          {% else %}<span class="badge gold">⏳ In progress</span>{% endif %}
+        </td>
+        <td><a class="btn btn-sm" href="{{ url_for('course_view', course_id=c.id) }}">Open</a></td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">No trainings have been assigned yet.</div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h3>🗂️ Training Materials</h3>
+  {% if materials %}
+    <div class="material-grid">
+      {% for m in materials %}
+      <div class="material-card">
+        <div class="mc-title">{{ m.name }}</div>
+        <div class="mc-meta">{{ (m.source_type or 'file')|upper }}</div>
+        {% if m.description %}<div class="mc-meta">{{ m.description }}</div>{% endif %}
+        <a class="btn" href="{{ url_for('course_view', course_id=m.id) }}">Open material</a>
+      </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty-state">No materials uploaded yet.</div>
+  {% endif %}
+</div>
+
+<div class="card">
+  <h3>📊 My Attempts</h3>
+  {% if attempts %}
+  <div class="table-wrap">
+    <table>
+      <tr>
+        <th>Course</th><th>Score</th><th>Result</th>
+        <th>Date</th><th>Certificate</th>
+      </tr>
+      {% for a in attempts %}
+      <tr>
+        <td>{{ a.course.name }}</td>
+        <td>{{ '%.1f'|format(a.percentage) }}%</td>
+        <td>
+          {% if a.passed %}<span class="badge green">Passed</span>
+          {% else %}<span class="badge red">Failed</span>{% endif %}
+          {% if a.distinction %}<span class="badge gold">⭐ Distinction</span>{% endif %}
+        </td>
+        <td>{{ a.completed_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>
+          {% if a.passed %}
+            <a class="btn btn-secondary btn-sm"
+               href="{{ url_for('download_certificate', attempt_id=a.id) }}">
+              ⬇ Certificate
+            </a>
+          {% else %}
+            <span class="muted">—</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">No attempts yet. Complete a training to take the exam.</div>
+  {% endif %}
+</div>
+{% endblock %}

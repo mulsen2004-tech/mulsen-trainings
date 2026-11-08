@@ -1,0 +1,10 @@
+Flask>=3.0.0
+Flask-SQLAlchemy>=3.1.1
+python-pptx>=0.6.23
+Werkzeug>=3.0.1
+Pillow>=10.1.0
+reportlab>=4.0.7
+PyMuPDF>=1.23.8
+openai>=1.60.0
+python-docx>=1.1.0
+qrcode[pil]>=7.4

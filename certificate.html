@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}Your result — {{ APP_NAME }}{% endblock %}
+
+{% block content %}
+<div class="result-wrap">
+
+  {% if attempt.passed %}
+    <div class="result-banner success">
+      <h1>🎉 Congratulations, {{ attempt.trainer.display_name }}!</h1>
+      <p>You scored <strong>{{ "%.1f"|format(attempt.percentage) }}%</strong>
+         on <em>{{ attempt.course.name }}</em>.</p>
+      {% if attempt.distinction %}
+        <p class="distinction">⭐ Awarded with distinction ⭐</p>
+      {% endif %}
+    </div>
+  {% else %}
+    <div class="result-banner fail">
+      <h1>Keep going, {{ attempt.trainer.display_name }}</h1>
+      <p>You scored <strong>{{ "%.1f"|format(attempt.percentage) }}%</strong>
+         on <em>{{ attempt.course.name }}</em>.</p>
+      <p>The pass mark is <strong>70%</strong>. You may retake the exam
+         (2 attempts total).</p>
+    </div>
+  {% endif %}
+
+  <div class="score-card">
+    <div class="score-big">{{ "%.1f"|format(attempt.percentage) }}%</div>
+    <div class="score-meta">
+      <span>{{ attempt.score }} / {{ attempt.total }} correct</span>
+      <span>Attempted {{ attempt.completed_at.strftime('%b %d, %Y — %H:%M') }}</span>
+      {% if attempt.distinction %}<span class="tag-gold">DISTINCTION</span>{% endif %}
+      {% if attempt.passed %}<span class="tag-green">PASSED</span>
+      {% else %}<span class="tag-red">NOT PASSED</span>{% endif %}
+    </div>
+  </div>
+
+  {% if attempt.passed %}
+    <div class="cert-preview">
+      <h2>Your Certificate</h2>
+      <p>The certificate is generated as a PDF on download.</p>
+      <a href="{{ url_for('download_certificate', attempt_id=attempt.id) }}"
+         class="btn btn-primary btn-lg">
+        ⬇ Download certificate (PDF)
+      </a>
+    </div>
+  {% else %}
+    <div class="cert-preview dim">
+      <h2>Certificate</h2>
+      <p class="muted">Certificates are issued when you score above 70%.</p>
+      <a href="{{ url_for('exam', course_id=attempt.course.id) }}"
+         class="btn btn-secondary">Retake exam</a>
+    </div>
+  {% endif %}
+
+  <p class="back-link">
+    <a href="{{ url_for('trainer_dashboard') }}">← Back to my dashboard</a>
+  </p>
+</div>
+
+<style>
+  .result-wrap { max-width:780px; margin:0 auto; padding:1rem; }
+  .result-banner { padding:1.25rem 1.5rem; border-radius:.6rem;
+                   margin-bottom:1.25rem; }
+  .result-banner h1 { margin:0 0 .5rem; font-size:1.5rem;
+                      word-break:break-word; }
+  .result-banner.success { background:#dcfce7; color:#166534; }
+  .result-banner.fail    { background:#fee2e2; color:#991b1b; }
+  .distinction { color:#b45309; font-weight:700; }
+
+  .score-card { background:#fff; border:1px solid #e5e7eb; border-radius:.6rem;
+                padding:1.25rem; display:flex; gap:1.5rem; align-items:center;
+                margin-bottom:1.25rem; }
+  .score-big { font-size:3rem; font-weight:800; color:#0f172a;
+               white-space:nowrap; }
+  .score-meta { display:flex; flex-direction:column; gap:.35rem;
+                font-size:.9rem; color:#4b5563; }
+  .tag-green  { background:#dcfce7; color:#166534; padding:.1rem .5rem;
+                border-radius:999px; font-weight:600; width:max-content; }
+  .tag-red    { background:#fee2e2; color:#991b1b; padding:.1rem .5rem;
+                border-radius:999px; font-weight:600; width:max-content; }
+  .tag-gold   { background:#fef3c7; color:#92400e; padding:.1rem .5rem;
+                border-radius:999px; font-weight:600; width:max-content; }
+
+  .cert-preview { background:#fff; border:1px solid #e5e7eb;
+                  border-radius:.6rem; padding:1.25rem; margin-bottom:1.25rem; }
+  .cert-preview.dim { background:#f9fafb; }
+  .cert-preview h2 { margin-top:0; }
+  .btn-lg { padding:.75rem 1.5rem; font-size:1rem; }
+  .muted { color:#6b7280; }
+  .back-link a { color:#2563eb; }
+
+  @media (max-width:768px){
+    .score-card{ flex-direction:column; align-items:flex-start;
+                 gap:.75rem; padding:1rem; }
+    .score-big{ font-size:2.4rem; }
+    .result-banner{ padding:1rem 1.1rem; }
+    .result-banner h1{ font-size:1.2rem; }
+    .cert-preview{ padding:1rem; }
+    .btn-lg{ width:100%; text-align:center; }
+  }
+  @media (max-width:640px){
+    .result-wrap{ padding:.5rem; }
+    .score-big{ font-size:2rem; }
+    .tag-green, .tag-red, .tag-gold{ font-size:.78rem; }
+  }
+</style>
+{% endblock %}

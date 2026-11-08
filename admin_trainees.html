@@ -1,0 +1,73 @@
+{% extends "admin_base.html" %}
+{% block title %}Trainees — Admin{% endblock %}
+{% block admin_content %}
+<div class="page-header">
+  <h1>Trainees</h1>
+  <a href="/admin/trainees/new" class="btn btn-primary btn-sm">
+    ➕ Add trainee (full form)
+  </a>
+</div>
+
+<section class="card">
+  <h2>All trainees ({{ trainers|length }})</h2>
+  {% if not trainers %}
+    <p class="muted">No trainees yet — click "Add trainee" above.</p>
+  {% else %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>ID</th><th>Full name</th><th>Email</th>
+            <th>Department</th><th>Position</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in trainers %}
+            <tr>
+              <td>{{ t.trainer_id }}</td>
+              <td>{{ t.display_name }}</td>
+              <td>{{ t.email or '—' }}</td>
+              <td>{{ t.department or '—' }}</td>
+              <td>{{ t.position or '—' }}</td>
+              <td class="actions">
+                <form method="POST"
+                      action="{{ url_for('reset_password', trainer_pk=t.id) }}"
+                      onsubmit="return confirm('Reset password for {{ t.display_name }}?');">
+                  <button class="btn btn-sm btn-secondary" type="submit">🔑 Reset password</button>
+                </form>
+                <form method="POST"
+                      action="{{ url_for('delete_trainer', trainer_pk=t.id) }}"
+                      onsubmit="return confirm('Delete trainee {{ t.trainer_id }}?');">
+                  <button class="btn btn-sm btn-danger" type="submit">🗑 Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</section>
+
+<style>
+  .page-header{ display:flex; justify-content:space-between;
+                align-items:center; margin-bottom:1rem;
+                flex-wrap:wrap; gap:.5rem; }
+  .page-header h1{ margin:0; }
+  .table-wrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .actions{ display:flex; gap:.4rem; flex-wrap:wrap; }
+  .actions form{ display:inline; }
+
+  @media (max-width:768px){
+    .page-header{ flex-direction:column; align-items:stretch; }
+    .page-header .btn{ width:100%; }
+    .actions{ flex-direction:column; }
+    .actions form, .actions button{ width:100%; }
+    .table th, .table td{ white-space:nowrap; }
+  }
+  @media (max-width:640px){
+    .card{ padding:.85rem; }
+    .card h2{ font-size:1.1rem; }
+  }
+</style>
+{% endblock %}

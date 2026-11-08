@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% block flashes %}{% endblock %}
+{% block content %}
+<div class="admin-shell">
+  <aside class="admin-nav">
+    <div class="nav-brand">{{ APP_NAME }}<br><small>Admin</small></div>
+    <nav>
+      <a href="{{ url_for('admin_courses') }}"
+         class="{{ 'active' if request.endpoint == 'admin_courses' else '' }}">📚 Courses</a>
+      <a href="{{ url_for('admin_exams') }}"
+         class="{{ 'active' if request.endpoint and request.endpoint.startswith('admin_exams') else '' }}">❓ Exams</a>
+      <a href="{{ url_for('admin_scripts') }}"
+         class="{{ 'active' if request.endpoint and request.endpoint.startswith('admin_scripts') else '' }}">🎙 Scripts</a>
+      <a href="{{ url_for('admin_trainees') }}"
+         class="{{ 'active' if request.endpoint == 'admin_trainees' else '' }}">👥 Trainees</a>
+      <a href="{{ url_for('admin_records') }}"
+         class="{{ 'active' if request.endpoint == 'admin_records' else '' }}">📊 Records</a>
+    </nav>
+    <a href="{{ url_for('admin_logout') }}"
+       class="btn btn-secondary btn-sm logout-btn">Log out</a>
+  </aside>
+
+  <main class="admin-main">
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+      {% if msgs %}
+        <div class="flash-stack">
+          {% for cat, msg in msgs %}
+            <div class="flash flash-{{ cat }}">{{ msg }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    {% block admin_content %}{% endblock %}
+  </main>
+</div>
+
+<style>
+  .admin-shell{ display:flex; min-height:calc(100vh - 56px); }
+  .admin-nav{ width:230px; background:#0f172a; color:#cbd5e1;
+              display:flex; flex-direction:column; padding:1rem 0;
+              flex-shrink:0; }
+  .nav-brand{ padding:0 1rem 1rem; font-weight:800; color:#fff;
+              border-bottom:1px solid #1e293b; }
+  .nav-brand small{ color:#64748b; font-weight:400; }
+  .admin-nav nav{ display:flex; flex-direction:column; padding:.75rem 0; }
+  .admin-nav a{ color:#cbd5e1; padding:.65rem 1.2rem;
+                text-decoration:none; font-size:.92rem;
+                border-left:3px solid transparent;
+                white-space:nowrap; }
+  .admin-nav a:hover{ background:#1e293b; }
+  .admin-nav a.active{ background:#1e293b; color:#fff;
+                       border-left-color:#60a5fa; font-weight:600; }
+  .admin-nav .logout-btn{ margin:1rem; text-align:center; }
+
+  .admin-main{ flex:1; padding:1.5rem 2rem; background:#f8fafc;
+               min-width:0; }
+
+  .flash-stack{ margin-bottom:1rem; display:flex;
+                flex-direction:column; gap:.5rem; }
+  .flash{ padding:.7rem 1rem; border-radius:.4rem; font-size:.9rem; }
+  .flash-success{ background:#dcfce7; color:#166534;
+                  border:1px solid #86efac; }
+  .flash-error{ background:#fee2e2; color:#991b1b;
+                border:1px solid #fca5a5; }
+  .flash-warning{ background:#fef3c7; color:#92400e;
+                  border:1px solid #fcd34d; }
+  .flash-info{ background:#dbeafe; color:#1e40af;
+               border:1px solid #93c5fd; }
+
+  .card{ background:#fff; border:1px solid #e5e7eb; border-radius:.6rem;
+         padding:1.25rem; margin-bottom:1.2rem; }
+  .card h2{ margin-top:0; }
+  .stack{ display:flex; flex-direction:column; gap:.5rem; }
+  .grid-2{ display:grid; grid-template-columns:1fr 1fr; gap:.5rem; }
+  .row-form{ display:flex; gap:.5rem; align-items:center;
+             flex-wrap:wrap; margin-bottom:.75rem; }
+  .muted{ color:#6b7280; }
+  .mono{ font-family:ui-monospace,Menlo,Consolas,monospace;
+         font-size:.9rem; }
+  .hidden{ display:none !important; }
+
+  .table{ width:100%; border-collapse:collapse; font-size:.9rem; }
+  .table th, .table td{ padding:.5rem .6rem; text-align:left;
+                        border-bottom:1px solid #e5e7eb; }
+  .table th{ background:#f3f4f6; font-weight:600; color:#374151;
+             white-space:nowrap; }
+
+  .badge{ background:#e5e7eb; color:#374151; padding:.15rem .55rem;
+          border-radius:999px; font-size:.78rem; white-space:nowrap; }
+  .badge-green{ background:#dcfce7; color:#166534; }
+  .badge-gold{ background:#fef3c7; color:#92400e; }
+
+  .tag-green{ background:#dcfce7; color:#166534; padding:.1rem .5rem;
+              border-radius:999px; font-weight:600; white-space:nowrap; }
+  .tag-red{ background:#fee2e2; color:#991b1b; padding:.1rem .5rem;
+            border-radius:999px; font-weight:600; white-space:nowrap; }
+  .tag-gold{ background:#fef3c7; color:#92400e; padding:.1rem .5rem;
+             border-radius:999px; font-weight:600; white-space:nowrap; }
+
+  .kpi-strip{ display:grid;
+              grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+              gap:.8rem; margin-bottom:1.2rem; }
+  .kpi{ background:#fff; border:1px solid #e5e7eb; border-radius:.6rem;
+        padding:1rem; text-align:center; }
+  .kpi-num{ font-size:2rem; font-weight:800; color:#0f172a; }
+  .kpi-lbl{ color:#6b7280; font-size:.85rem; }
+
+  .trainer-block{ border:1px solid #e5e7eb; border-radius:.5rem;
+                  padding:.75rem 1rem; margin-bottom:.75rem;
+                  background:#fafafa; }
+  .trainer-block summary{ cursor:pointer; display:flex;
+                          align-items:center; gap:.75rem;
+                          flex-wrap:wrap; }
+  .tname{ font-weight:700; }
+  .tid{ color:#6b7280; font-size:.85rem; }
+  .badges{ display:flex; gap:.4rem; flex-wrap:wrap; margin-left:auto; }
+
+  @media (max-width:1024px){
+    .admin-main{ padding:1rem 1.25rem; }
+  }
+
+  @media (max-width:768px){
+    .admin-shell{ flex-direction:column; min-height:auto; }
+    .admin-nav{ width:100%; padding:0; flex-direction:column;
+                background:#0f172a; }
+    .nav-brand{ padding:.65rem 1rem; border-bottom:1px solid #1e293b;
+                font-size:.9rem; }
+    .admin-nav nav{ flex-direction:row; overflow-x:auto;
+                    padding:0; scrollbar-width:none; }
+    .admin-nav nav::-webkit-scrollbar{ display:none; }
+    .admin-nav a{ padding:.65rem .9rem; font-size:.85rem;
+                  border-left:0;
+                  border-bottom:3px solid transparent; flex-shrink:0; }
+    .admin-nav a.active{ border-left:0;
+                         border-bottom-color:#60a5fa; }
+    .admin-nav .logout-btn{ margin:.5rem 1rem; align-self:flex-start;
+                            font-size:.78rem; }
+    .admin-main{ padding:.85rem; }
+    .grid-2{ grid-template-columns:1fr; }
+    .row-form{ flex-direction:column; align-items:stretch; }
+    .row-form > *{ width:100%; }
+    .kpi-strip{ grid-template-columns:repeat(2,1fr); gap:.5rem; }
+    .kpi{ padding:.75rem; }
+    .kpi-num{ font-size:1.5rem; }
+    .kpi-lbl{ font-size:.78rem; }
+    .trainer-block summary{ gap:.4rem; }
+    .badges{ width:100%; margin-left:0; margin-top:.35rem; }
+    .table{ font-size:.82rem; }
+    .table th, .table td{ padding:.4rem .35rem; }
+  }
+
+  @media (max-width:640px){
+    .admin-main{ padding:.6rem; }
+    .card{ padding:.85rem; border-radius:.5rem;
+           margin-bottom:.75rem; }
+    .card h2{ font-size:1.1rem; }
+    .kpi-strip{ grid-template-columns:1fr 1fr; }
+    .kpi-num{ font-size:1.35rem; }
+    .flash{ font-size:.85rem; padding:.55rem .75rem; }
+    .table{ display:block; overflow-x:auto;
+            -webkit-overflow-scrolling:touch;
+            white-space:nowrap; }
+  }
+
+  @media (max-width:420px){
+    .admin-nav a{ padding:.55rem .65rem; font-size:.78rem; }
+    .kpi-num{ font-size:1.2rem; }
+    .card{ padding:.65rem; }
+  }
+
+  @media print{
+    .admin-nav, .flash-stack{ display:none !important; }
+    .admin-main{ padding:0 !important; background:#fff !important; }
+    .card{ box-shadow:none !important; border:1px solid #000 !important; }
+    .btn, button, form{ display:none !important; }
+  }
+</style>
+{% endblock %}

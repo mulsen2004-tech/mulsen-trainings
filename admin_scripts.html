@@ -1,0 +1,600 @@
+{% extends "admin_base.html" %}
+{% block title %}Scripts &amp; Recordings — Admin{% endblock %}
+{% block admin_content %}
+<h1>Scripts &amp; Recordings</h1>
+
+{% if not courses %}
+  <div class="card">
+    <p class="muted">No courses yet — create one first.</p>
+    <a href="{{ url_for('admin_courses') }}" class="btn btn-primary btn-sm">Go to Courses</a>
+  </div>
+{% else %}
+  <div class="course-picker">
+    <label for="courseSelect">Choose course:</label>
+    <select id="courseSelect"
+            data-base="{{ url_for('admin_scripts') }}"
+            onchange="onCourseChange(this)">
+      {% for c in courses %}
+        <option value="{{ c.id }}"
+                {{ 'selected' if selected and selected.id == c.id else '' }}>
+          {{ c.name }}
+        </option>
+      {% endfor %}
+    </select>
+    <a href="{{ url_for('admin_courses') }}" class="btn btn-secondary btn-sm"
+       style="margin-left:auto;">+ New course</a>
+  </div>
+{% endif %}
+
+{% if selected %}
+  {% set audio = course_audio[selected.id] %}
+  <p class="muted" style="margin-bottom:1rem;">
+    Slides: {{ audio.slide_count if audio.slide_count is not none else '?' }} &middot;
+    Script pages: {{ audio.script_pages }}
+    (EN {{ audio.en_pages }} · አማ {{ audio.am_pages }}) &middot;
+    Recorded pages: {{ audio.recorded_pages }}
+  </p>
+
+  <!-- ============ INSTRUCTOR SCRIPT ============ -->
+  <section class="card">
+    <h2>📝 Instructor Script</h2>
+    <p class="muted">
+      Type, paste, or dictate the narration per slide using
+      <code>===== Page N =====</code> headers.
+      <a href="{{ url_for('download_script_template') }}">⬇ Download Word template</a>
+    </p>
+
+    <div id="dictationEnvBanner"
+         style="display:none;padding:.7rem .9rem;border-radius:.4rem;
+                margin-bottom:.75rem;font-size:.88rem;"></div>
+
+    <form method="POST"
+          action="{{ url_for('paste_instructor_script', course_id=selected.id) }}"
+          class="stack">
+      <label style="font-weight:600;font-size:.9rem;">Paste / dictate script</label>
+
+      <div class="grid-2" style="align-items:end;">
+        <div>
+          <label style="font-weight:600;font-size:.85rem;">Language</label>
+          <select name="language" id="pasteLanguage">
+            <option value="en">English</option>
+            <option value="am">አማርኛ (Amharic)</option>
+          </select>
+        </div>
+        <div></div>
+      </div>
+
+      <textarea name="script_text" id="scriptTextArea" rows="10" class="mono"
+        placeholder="===== Page 1 =====&#10;Welcome to the training...&#10;&#10;===== Page 2 =====&#10;Safety is everyone's responsibility..."></textarea>
+
+      <div style="display:flex;gap:.5rem;margin-top:.5rem;flex-wrap:wrap;align-items:center;">
+        <button class="btn btn-primary btn-sm" type="submit">💾 Save — Paste script</button>
+        <button type="button" id="dictationBtn"
+                class="btn btn-secondary btn-sm"
+                onclick="toggleDictation('scriptTextArea', 'dictationStatus', this)">
+          🎤 Start dictation (speech → text)
+        </button>
+        <span id="dictationStatus" class="muted"></span>
+      </div>
+    </form>
+
+    <hr style="border:0;border-top:1px solid #e5e7eb;margin:1rem 0;">
+
+    <form method="POST"
+          action="{{ url_for('upload_instructor_script', course_id=selected.id) }}"
+          enctype="multipart/form-data" class="stack">
+      <label style="font-weight:600;font-size:.9rem;">Or upload (.docx / .txt / .csv)</label>
+
+      <div class="grid-2">
+        <div>
+          <label style="font-weight:600;font-size:.85rem;">Language</label>
+          <select name="language">
+            <option value="en">English</option>
+            <option value="am">አማርኛ (Amharic)</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-weight:600;font-size:.85rem;">File</label>
+          <input type="file" name="script_file" accept=".docx,.txt,.csv" required>
+        </div>
+      </div>
+
+      <div>
+        <button class="btn btn-primary btn-sm" type="submit">💾 Save — Upload script file</button>
+      </div>
+    </form>
+
+    {% if selected_scripts %}
+      <hr style="border:0;border-top:1px solid #e5e7eb;margin:1rem 0;">
+      <div class="script-list-header">
+        <h3>Current script ({{ selected_scripts|length }} pages)</h3>
+        <form method="POST"
+              action="{{ url_for('delete_instructor_script', course_id=selected.id) }}"
+              onsubmit="return confirm('Delete the entire script for this course?');">
+          <button class="btn btn-danger btn-sm" type="submit">🗑 Delete whole script</button>
+        </form>
+      </div>
+
+      {% for s in selected_scripts %}
+        <div class="script-row">
+          <div class="script-head">
+            <strong>Page {{ s.page_number }}
+                <span class="badge {% if s.language == 'am' %}badge-am{% else %}badge-en{% endif %}">
+                {% if s.language == 'am' %}አማርኛ{% else %}EN{% endif %}
+              </span>
+            </strong>
+            <div class="script-actions">
+              <button type="button" class="btn btn-secondary btn-sm"
+                      data-page-number="{{ s.page_number }}"
+                      onclick="toggleScriptEdit(this.dataset.pageNumber)">✏ Edit</button>
+              <form method="POST"
+                    action="{{ url_for('edit_script_page', course_id=selected.id, page_num=s.page_number) }}"
+                    onsubmit="return confirm('Delete page {{ s.page_number }}?');">
+                <input type="hidden" name="narration_text" value="">
+                <button class="btn btn-danger btn-sm" type="submit">🗑 Delete</button>
+              </form>
+            </div>
+          </div>
+          <div class="script-preview" {% if s.language == 'am' %}lang="am"{% endif %}>{{ s.narration_text[:220] }}{% if s.narration_text|length > 220 %}…{% endif %}</div>
+
+          <div id="scriptEdit_{{ s.page_number }}" class="hidden" style="margin-top:.5rem;">
+            <form method="POST"
+                  action="{{ url_for('edit_script_page', course_id=selected.id, page_num=s.page_number) }}"
+                  class="stack">
+              <div>
+                <label style="font-weight:600;font-size:.85rem;">Language</label>
+                <select name="language">
+                  <option value="en" {{ 'selected' if s.language != 'am' }}>English</option>
+                  <option value="am" {{ 'selected' if s.language == 'am' }}>አማርኛ (Amharic)</option>
+                </select>
+              </div>
+              <textarea name="narration_text" rows="6" class="mono" required
+                        {% if s.language == 'am' %}lang="am"{% endif %}>{{ s.narration_text }}</textarea>
+              <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+                <button class="btn btn-primary btn-sm" type="submit">💾 Save page</button>
+                <button class="btn btn-secondary btn-sm" type="button"
+                        data-page-number="{{ s.page_number }}"
+                        onclick="toggleScriptEdit(this.dataset.pageNumber)">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      {% endfor %}
+    {% endif %}
+  </section>
+
+  <!-- ============ RECORDINGS ============ -->
+  <section class="card">
+    <h2>🎙 Per-page recordings</h2>
+    <p class="muted">
+      Record your voice for individual slides. Recordings override the
+      auto-generated TTS for that page.
+      <strong>Note:</strong> the browser only allows recording over
+      <code>http://localhost</code> or <code>https://</code>. If you're
+      accessing via a LAN IP, use <code>localhost</code> instead.
+    </p>
+
+    {% if audio.slide_count and audio.slide_count > 0 %}
+      <div class="rec-grid">
+      {% for n in range(1, audio.slide_count + 1) %}
+        {% set existing_rec = selected_recordings.get(n) %}
+        <div class="rec-cell">
+          <div class="rec-title">
+            Page {{ n }}
+            {% if existing_rec %}<span class="badge-green" style="margin-left:.3rem;">● recorded</span>{% endif %}
+          </div>
+          <button type="button" class="btn btn-sm"
+                  data-course-id="{{ selected.id }}"
+                  data-page-number="{{ n }}"
+                  onclick="toggleRec(this.dataset.courseId, this.dataset.pageNumber, this)">
+            🎙 Record
+          </button>
+          <span class="rec-status" id="recStatus_{{ selected.id }}_{{ n }}"></span>
+          <div class="rec-actions">
+            <button type="button" class="btn btn-sm btn-link"
+                    data-course-id="{{ selected.id }}"
+                    data-page-number="{{ n }}"
+                    onclick="previewRec(this.dataset.courseId, this.dataset.pageNumber)">▶ Play</button>
+            <button type="button" class="btn btn-sm btn-danger"
+                    data-course-id="{{ selected.id }}"
+                    data-page-number="{{ n }}"
+                    onclick="deleteRec(this.dataset.courseId, this.dataset.pageNumber)">🗑 Delete</button>
+          </div>
+          <audio id="recAudio_{{ selected.id }}_{{ n }}" controls
+                 style="width:100%;display:none;margin-top:.25rem;"></audio>
+        </div>
+      {% endfor %}
+      </div>
+    {% else %}
+      <div style="padding:.75rem;background:#fef3c7;border-radius:.4rem;">
+        <p style="margin:0 0 .5rem;">
+          ⚠ This course's slideshow could not be read (file missing or unreadable).
+          You can still record — set the number of pages manually:
+        </p>
+        <form method="POST"
+              action="{{ url_for('set_manual_slide_count', course_id=selected.id) }}"
+              class="row-form">
+          <label style="margin:0;">Number of pages to record:</label>
+          <input type="number" name="page_count" min="1" max="200"
+                 value="10" style="max-width:100px;" required>
+          <button class="btn btn-primary btn-sm" type="submit">💾 Save</button>
+        </form>
+      </div>
+    {% endif %}
+  </section>
+{% endif %}
+
+<style>
+  .hidden { display:none !important; }
+  .course-picker { display:flex; align-items:center; gap:.6rem; margin-bottom:1rem; }
+  .course-picker label { font-weight:600; margin:0; }
+
+  /* Amharic font fallback for Ethiopic glyphs */
+  [lang="am"],
+  textarea[lang="am"],
+  .script-preview[lang="am"] {
+    font-family: "Noto Sans Ethiopic", "Nyala", "Abyssinica SIL", sans-serif;
+    line-height: 1.7;
+  }
+
+  .script-list-header{ display:flex; justify-content:space-between;
+                       align-items:center; gap:.5rem; flex-wrap:wrap; }
+  .script-list-header h3{ margin:0; }
+  .badge-am { margin-left:.35rem; background:#fef3c7; color:#92400e; }
+  .badge-en { margin-left:.35rem; background:#dbeafe; color:#1e40af; }
+
+  .rec-grid { display:grid;
+              grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+              gap:.6rem; margin-top:.75rem; }
+  .rec-cell { border:1px solid #e5e7eb; border-radius:.4rem;
+              padding:.6rem; background:#fff; }
+  .rec-title { font-weight:600; font-size:.85rem; margin-bottom:.35rem; }
+  .rec-status { display:block; font-size:.8rem; color:#6b7280;
+                margin-top:.35rem; min-height:1rem; }
+  .rec-actions { display:flex; gap:.4rem; margin-top:.4rem; }
+  .btn-link { background:transparent; border:0; color:#2563eb; padding:0; }
+
+  .script-row { border:1px solid #e5e7eb; border-radius:.5rem;
+                padding:.75rem; margin-bottom:.6rem; background:#fafafa; }
+  .script-head { display:flex; justify-content:space-between;
+                 align-items:center; margin-bottom:.35rem; gap:.5rem; }
+  .script-actions{ display:flex; gap:.4rem; }
+  .script-preview { font-size:.85rem; color:#374151; white-space:pre-wrap;
+                    background:#fff; padding:.5rem; border-radius:.3rem;
+                    border:1px solid #e5e7eb; max-height:6rem; overflow:hidden; }
+
+  /* Dictation button states */
+  #dictationBtn.listening {
+    background:#b91c1c;
+    color:#fff;
+    border-color:#991b1b;
+    animation:pulse 1.2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(185,28,28,.7); }
+    50%      { box-shadow: 0 0 0 8px rgba(185,28,28,0); }
+  }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width:768px){
+    .course-picker{ flex-direction:column; align-items:stretch; }
+    .course-picker > *{ width:100%; }
+    .rec-grid{ grid-template-columns:1fr; }
+    .script-head{ flex-wrap:wrap; }
+    .script-actions{ width:100%; justify-content:flex-start; }
+    .script-list-header{ flex-direction:column; align-items:stretch; }
+    .script-list-header .btn{ width:100%; }
+  }
+
+  @media (max-width:640px){
+    .card{ padding:.85rem; }
+    .rec-cell{ padding:.5rem; }
+    #dictationBtn{ width:100%; }
+    .script-preview{ font-size:.8rem; max-height:5rem; }
+    .script-actions button{ flex:1; }
+    textarea[name="script_text"]{ font-size:14px; }
+  }
+
+  @media (max-width:380px){
+    .script-preview{ font-size:.75rem; }
+  }
+</style>
+
+<script>
+/* ============================================================
+   Navigation
+============================================================ */
+function onCourseChange(sel){
+  if (!sel.value) return;
+  const base = sel.dataset.base.replace(/\/$/, '');
+  window.location = base + '/' + sel.value;
+}
+
+function toggleScriptEdit(pageNum){
+  const el = document.getElementById('scriptEdit_' + pageNum);
+  if (el) el.classList.toggle('hidden');
+}
+
+/* ============================================================
+   Speech-to-Text dictation (auto-restarting, secure-context aware)
+============================================================ */
+(function checkDictationEnvironment(){
+  const banner = document.getElementById('dictationEnvBanner');
+  const btn = document.getElementById('dictationBtn');
+  if (!banner || !btn) return;
+
+  const isSecure = window.isSecureContext;
+  const hasSR = ('webkitSpeechRecognition' in window ||
+                 'SpeechRecognition' in window);
+
+  if (!hasSR){
+    banner.style.display = 'block';
+    banner.style.background = '#fee2e2';
+    banner.style.color = '#991b1b';
+    banner.innerHTML =
+      '❌ <strong>Dictation unavailable in this browser.</strong> ' +
+      'Please use <strong>Chrome</strong> or <strong>Edge</strong>.';
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    btn.style.cursor = 'not-allowed';
+    return;
+  }
+
+  if (!isSecure){
+    banner.style.display = 'block';
+    banner.style.background = '#fef3c7';
+    banner.style.color = '#92400e';
+    banner.innerHTML =
+      '⚠ <strong>Microphone access is blocked on this address.</strong> ' +
+      'Speech recognition requires <code>http://localhost:5000</code> ' +
+      'or <code>https://</code>. You are on <code>' +
+      window.location.origin + '</code>. ' +
+      'Please open <a href="http://localhost:5000' +
+      window.location.pathname + '" style="color:#92400e;font-weight:600;">' +
+      'localhost instead</a>.';
+  } else {
+    banner.style.display = 'block';
+    banner.style.background = '#dbeafe';
+    banner.style.color = '#1e40af';
+    banner.innerHTML =
+      '🎤 Dictation is ready. Click <strong>Start dictation</strong>, ' +
+      'speak clearly, then click again to stop. ' +
+      'The browser will ask for microphone permission the first time. ' +
+      '<br><small>The dictation language follows the selected ' +
+      '<strong>Language</strong> dropdown above.</small>';
+  }
+})();
+
+let _dictation = {
+  recognition: null,
+  active: false,
+  restartTimer: null,
+  textareaId: null,
+  statusId: null,
+  buttonEl: null,
+  baseText: '',
+};
+
+function updateDictationUI(state, message){
+  const status = document.getElementById(_dictation.statusId || 'dictationStatus');
+  const btn = _dictation.buttonEl;
+  if (status) status.textContent = message || '';
+  if (btn){
+    if (state === 'listening'){
+      btn.textContent = '⏹ Stop dictation';
+      btn.classList.add('listening');
+      btn.classList.remove('btn-secondary');
+      btn.classList.add('btn-danger');
+    } else {
+      btn.textContent = '🎤 Start dictation (speech → text)';
+      btn.classList.remove('listening');
+      btn.classList.remove('btn-danger');
+      btn.classList.add('btn-secondary');
+    }
+  }
+}
+
+function stopDictation(message){
+  _dictation.active = false;
+  if (_dictation.restartTimer){
+    clearTimeout(_dictation.restartTimer);
+    _dictation.restartTimer = null;
+  }
+  if (_dictation.recognition){
+    try { _dictation.recognition.abort(); } catch(_){}
+    _dictation.recognition = null;
+  }
+  updateDictationUI('idle', message || 'Stopped.');
+}
+
+function toggleDictation(textareaId, statusId, buttonEl){
+  if (_dictation.active){
+    stopDictation('Stopped.');
+    return;
+  }
+
+  const ta = document.getElementById(textareaId);
+  const status = document.getElementById(statusId);
+  if (!ta || !status){
+    alert('Textarea not found.');
+    return;
+  }
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR){
+    status.textContent = '❌ This browser does not support speech recognition.';
+    return;
+  }
+
+  // Pick dictation language from the dropdown next to the textarea
+  const langSel = document.getElementById('pasteLanguage');
+  const dictLang = (langSel && langSel.value === 'am') ? 'am-ET' : 'en-US';
+
+  _dictation.textareaId = textareaId;
+  _dictation.statusId = statusId;
+  _dictation.buttonEl = buttonEl;
+  _dictation.baseText = ta.value;
+  if (_dictation.baseText && !_dictation.baseText.endsWith('\n')){
+    _dictation.baseText += '\n';
+  }
+  _dictation.active = true;
+
+  startRecognitionSession();
+
+  function startRecognitionSession(){
+    if (!_dictation.active) return;
+
+    const rec = new SR();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = dictLang;
+    rec.maxAlternatives = 1;
+
+    let sessionFinal = '';
+
+    rec.onstart = function(){
+      updateDictationUI('listening',
+        '🔴 Listening… speak now (' + dictLang + '). Click again to stop.');
+    };
+
+    rec.onresult = function(event){
+      let finalTxt = '';
+      let interimTxt = '';
+      for (let i = event.resultIndex; i < event.results.length; i++){
+        const res = event.results[i];
+        if (res.isFinal){
+          finalTxt += res[0].transcript + ' ';
+        } else {
+          interimTxt += res[0].transcript;
+        }
+      }
+      if (finalTxt){
+        sessionFinal += finalTxt;
+        const ta2 = document.getElementById(_dictation.textareaId);
+        if (ta2){
+          ta2.value = _dictation.baseText + sessionFinal;
+          ta2.scrollTop = ta2.scrollHeight;
+        }
+      }
+      if (interimTxt){
+        updateDictationUI('listening',
+          '🔴 Listening… "' + interimTxt.trim() + '"');
+      }
+    };
+
+    rec.onerror = function(e){
+      if (e.error === 'no-speech' || e.error === 'aborted'){
+        return;
+      }
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed'){
+        stopDictation(
+          '❌ Microphone permission denied. Allow mic in the browser ' +
+          'address bar and try again.');
+        return;
+      }
+      if (e.error === 'network'){
+        updateDictationUI('listening',
+          '⚠ Network hiccup — trying to reconnect…');
+        return;
+      }
+      if (e.error === 'language-not-supported'){
+        stopDictation(
+          '❌ This browser does not support the selected dictation ' +
+          'language (' + dictLang + '). Try English or use Chrome.');
+        return;
+      }
+      console.warn('Speech recognition error:', e.error);
+    };
+
+    rec.onend = function(){
+      if (!_dictation.active){
+        return;
+      }
+      _dictation.restartTimer = setTimeout(function(){
+        if (_dictation.active){
+          startRecognitionSession();
+        }
+      }, 250);
+    };
+
+    _dictation.recognition = rec;
+    try {
+      rec.start();
+    } catch(err){
+      stopDictation('❌ Could not start microphone: ' + err.message);
+    }
+  }
+}
+
+/* ============================================================
+   Audio recording (unchanged behaviour, guarded)
+============================================================ */
+const _recorders = {};
+async function toggleRec(courseId, pageNum, btn){
+  const key = courseId + '_' + pageNum;
+  const status = document.getElementById(`recStatus_${key}`);
+  const existing = _recorders[key];
+  if (existing && existing.mediaRec && existing.mediaRec.state === 'recording'){
+    existing.mediaRec.stop(); return;
+  }
+  if (!navigator.mediaDevices || !window.MediaRecorder){
+    status.textContent = '❌ Recording not supported in this browser.'; return;
+  }
+  if (!window.isSecureContext){
+    status.textContent =
+      '❌ Recording requires localhost or https. You are on ' +
+      window.location.origin + '.';
+    return;
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+    const mime = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+      ? 'audio/webm;codecs=opus'
+      : (MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '');
+    const mediaRec = mime ? new MediaRecorder(stream,{mimeType:mime}) : new MediaRecorder(stream);
+    const chunks = [];
+    mediaRec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+    mediaRec.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      clearTimeout(existing && existing.timer);
+      btn.textContent = '🎙 Record'; btn.classList.remove('btn-danger');
+      if (!chunks.length){ status.textContent = '⚠ Nothing recorded.'; return; }
+      const blob = new Blob(chunks,{type:mediaRec.mimeType||'audio/webm'});
+      status.textContent = '⬆ Uploading…';
+      const fd = new FormData(); fd.append('audio', blob, `page_${pageNum}.webm`);
+      try {
+        const r = await fetch(`/admin/course/${courseId}/page/${pageNum}/recording`,
+                             {method:'POST', body:fd});
+        if (!r.ok) throw new Error('HTTP '+r.status);
+        status.textContent = '✅ Saved ('+Math.round(blob.size/1024)+' KB)';
+      } catch (err){ status.textContent = '❌ Upload failed: '+err.message; }
+    };
+    mediaRec.start();
+    const timer = setTimeout(()=>{ if (mediaRec.state==='recording') mediaRec.stop(); }, 3*60*1000);
+    _recorders[key] = {mediaRec, chunks, stream, timer};
+    btn.textContent = '⏹ Stop'; btn.classList.add('btn-danger');
+    status.textContent = '🔴 Recording… (auto-stop at 3 min)';
+  } catch (err){ status.textContent = '❌ ' + err.message; }
+}
+
+function previewRec(courseId, pageNum){
+  const audio = document.getElementById(`recAudio_${courseId}_${pageNum}`);
+  audio.style.display='block';
+  audio.src = `/course/${courseId}/slide/${pageNum}/audio?t=${Date.now()}`;
+  audio.play().catch(()=>{});
+}
+
+async function deleteRec(courseId, pageNum){
+  if (!confirm(`Delete recording for page ${pageNum}?`)) return;
+  const status = document.getElementById(`recStatus_${courseId}_${pageNum}`);
+  try {
+    const r = await fetch(`/admin/course/${courseId}/page/${pageNum}/recording`,
+                         {method:'DELETE'});
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    status.textContent = '🗑 Deleted';
+    const audio = document.getElementById(`recAudio_${courseId}_${pageNum}`);
+    audio.pause(); audio.removeAttribute('src'); audio.style.display='none';
+  } catch (err){ status.textContent = '❌ Delete failed: '+err.message; }
+}
+</script>
+{% endblock %}

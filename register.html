@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}Register — {{ APP_NAME }}{% endblock %}
+{% block content %}
+<div class="auth-card" style="max-width:520px;">
+  <h1>📝 Create your account</h1>
+  <p class="muted" style="text-align:center;margin-top:0;">
+    Fill in the form to register. A password will be generated and sent to your email.
+  </p>
+  <form method="post">
+    <label for="full_name">Full name <span style="color:#b91c1c;">*</span></label>
+    <input id="full_name" type="text" name="full_name"
+           value="{{ full_name or '' }}"
+           autocomplete="name" required autofocus>
+
+    <label for="email">Email address <span style="color:#b91c1c;">*</span></label>
+    <input id="email" type="email" name="email"
+           value="{{ email or '' }}"
+           autocomplete="email" required>
+
+    <label for="department">Department <span style="color:#b91c1c;">*</span></label>
+    <input id="department" type="text" name="department"
+           value="{{ department or '' }}"
+           autocomplete="organization-title" required>
+
+    <label for="position">Position (optional)</label>
+    <input id="position" type="text" name="position"
+           value="{{ position or '' }}"
+           autocomplete="organization">
+
+    <button type="submit">Create account</button>
+  </form>
+
+  <p class="auth-footer">
+    Already have an account? <a href="{{ url_for('login') }}">Sign in</a>
+  </p>
+</div>
+{% endblock %}
